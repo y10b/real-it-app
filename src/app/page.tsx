@@ -247,20 +247,20 @@ export default function Home() {
           }));
         })
         .catch(() => [] as ProductInfo[]),
-      // 올리브영 - 매장 재고만 반환, 상품 목록 없음 → 단일 항목으로 표시
+      // 올리브영 - 상품 목록 + 매장 재고 동시 반환
       getOliveyoungInventory(query, geo.lat, geo.lng)
         .then((res) => {
           const stores = res?.data?.nearbyStores?.stores || [];
+          const products = res?.data?.inventory?.products || [];
           // 매장 재고 캐시
           cachedStoresRef.current.oliveyoung = stores;
-          if (!Array.isArray(stores) || stores.length === 0) return [];
-          const totalStock = stores.reduce((sum: number, s: any) => sum + (s.o2oRemainQuantity || 0), 0);
-          return [{
-            id: `oy-${query}`,
-            name: `${query} (${stores.length}개 매장, 재고 ${totalStock}개)`,
-            price: 0,
-            source: 'oliveyoung' as const,
-          }] as ProductInfo[];
+          if (!Array.isArray(products) || products.length === 0) return [];
+          return products.slice(0, 20).map((p: any): ProductInfo => ({
+            id: p.goodsNumber || p.goodsNo || '',
+            name: p.goodsName || p.name || '',
+            price: p.priceToPay || p.originalPrice || 0,
+            source: 'oliveyoung',
+          }));
         })
         .catch(() => [] as ProductInfo[]),
       // 이마트24 - products 엔드포인트로 상품 검색
@@ -355,12 +355,9 @@ export default function Home() {
         // 올리브영: 캐시된 매장 재고 사용 (검색 시 이미 받아옴)
         const storeList = cachedStoresRef.current.oliveyoung;
         mapped = Array.isArray(storeList) ? storeList.map((s: any): InventoryInfo => {
-          const qty = s.o2oRemainQuantity ?? s.stock ?? null;
-          let stockLabel: string;
-          if (qty === null || qty === undefined) stockLabel = '정보없음';
-          else if (qty === 0) stockLabel = '품절';
-          else if (qty <= 5) stockLabel = `소량 (${qty}개)`;
-          else stockLabel = `재고있음 (${qty}개)`;
+          // o2oStockFlag: 픽업 가능 여부, pickupYn: 픽업 서비스 지원 여부
+          const hasStock = s.o2oStockFlag || s.pickupYn;
+          const stockLabel = hasStock ? '재고있음' : '품절';
           return {
             storeName: s.storeName || '',
             storeCode: s.storeCode || '',

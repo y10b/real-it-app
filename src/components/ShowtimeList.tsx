@@ -94,7 +94,7 @@ export default function ShowtimeList({ store, showtimes, loading, onClose }: Pro
                                   : 'text-green-600'
                             }`}
                           >
-                            {soldOut ? '매진' : `${t.remainingSeats}석`}
+                            {soldOut ? '매진' : `${t.remainingSeats}/${t.totalSeats}석`}
                           </p>
                         </div>
                       );
