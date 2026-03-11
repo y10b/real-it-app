@@ -400,7 +400,7 @@ export default function Home() {
               lng: info.longitude,
               source: 'emart24',
             };
-          }).filter((s) => s.stock !== '품절') : [];
+          }) : [];
         }
       }
 
