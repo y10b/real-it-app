@@ -38,19 +38,26 @@ export default function ProductList({ products, onSelect, onClose, loading }: Pr
                     onClick={() => onSelect(product)}
                     className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors text-left"
                   >
-                    <div className="w-12 h-12 rounded-lg shrink-0 bg-white/80 flex items-center justify-center overflow-hidden">
+                    <div
+                      className="w-12 h-12 rounded-lg shrink-0 flex items-center justify-center overflow-hidden"
+                      style={{ background: product.imageUrl ? '#f3f4f6' : `${meta.color}20` }}
+                    >
                       {product.imageUrl ? (
                         <img
                           src={product.imageUrl.replace('img.daisomall.co.kr', 'cdn.daisomall.co.kr')}
                           alt={product.name}
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                            (e.target as HTMLImageElement).parentElement!.innerHTML = '<span style="font-size:18px">🛒</span>';
+                            const parent = (e.target as HTMLImageElement).parentElement!;
+                            parent.style.background = `${meta.color}20`;
+                            parent.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${meta.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>`;
                           }}
                         />
                       ) : (
-                        <span style={{ fontSize: 18 }}>🛒</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={meta.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                        </svg>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
