@@ -7,9 +7,10 @@ import SearchBar from '@/components/SearchBar';
 import StoreDetail from '@/components/StoreDetail';
 import ProductList from '@/components/ProductList';
 import InventoryList from '@/components/InventoryList';
+import ShowtimeList from '@/components/ShowtimeList';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useReverseGeocode } from '@/hooks/useReverseGeocode';
-import { StoreType, StoreInfo, ProductInfo, InventoryInfo } from '@/types';
+import { StoreType, StoreInfo, ProductInfo, InventoryInfo, ShowtimeInfo, CINEMA_TYPES } from '@/types';
 import {
   getDaisoStores,
   getOliveyoungStores,
@@ -20,9 +21,12 @@ import {
   getCgvTheaters,
   searchDaisoProducts,
   getDaisoInventory,
+  getMegaboxSeats,
+  getLottecinemaSeats,
+  getCgvTimetable,
 } from '@/api/stores';
 
-type ViewState = 'map' | 'products' | 'inventory';
+type ViewState = 'map' | 'products' | 'inventory' | 'showtimes';
 
 export default function Home() {
   const geo = useGeolocation();
@@ -34,8 +38,10 @@ export default function Home() {
   const [selectedStore, setSelectedStore] = useState<StoreInfo | null>(null);
   const [products, setProducts] = useState<ProductInfo[]>([]);
   const [inventory, setInventory] = useState<InventoryInfo[]>([]);
+  const [showtimes, setShowtimes] = useState<ShowtimeInfo[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [storesLoading, setStoresLoading] = useState(false);
+  const [showtimeLoading, setShowtimeLoading] = useState(false);
   const [viewState, setViewState] = useState<ViewState>('map');
 
   const loadNearbyStores = useCallback(async (
@@ -93,9 +99,11 @@ export default function Home() {
           address: s.address || s.addr || '',
           lat: Number(storeLat),
           lng: Number(storeLng),
-          storeCode: s.storeCode || s.theaterCode || s.code || '',
-          distance: s.distance || '',
+          storeCode: s.storeCode || s.theaterCode || s.theaterId || s.code || '',
+          distance: s.distance || s.distanceKm || '',
           phone: s.phone || s.tel || '',
+          regionCode: s.regionCode || '',
+          regionDetailCode: s.regionDetailCode || '',
         });
       });
     });
@@ -126,8 +134,68 @@ export default function Home() {
     });
   }, []);
 
+  const handleStoreClick = useCallback(async (store: StoreInfo) => {
+    setSelectedStore(store);
+
+    // 영화관이면 상영 정보 자동 로드
+    if (CINEMA_TYPES.includes(store.type) && store.storeCode) {
+      setShowtimeLoading(true);
+      setViewState('showtimes');
+      try {
+        let seats: ShowtimeInfo[] = [];
+
+        if (store.type === 'megabox') {
+          const res = await getMegaboxSeats(store.storeCode);
+          const list = res?.data?.seats || [];
+          seats = list.map((s: any) => ({
+            movieName: s.movieName || '',
+            startTime: s.startTime || '',
+            endTime: s.endTime || '',
+            totalSeats: s.totalSeats || 0,
+            remainingSeats: s.remainingSeats || 0,
+            screenName: s.screenName || '',
+          }));
+        } else if (store.type === 'lottecinema') {
+          const res = await getLottecinemaSeats(
+            store.storeCode,
+            store.regionCode || '1',
+            store.regionDetailCode || '0001'
+          );
+          const list = res?.data?.seats || [];
+          seats = list.map((s: any) => ({
+            movieName: s.movieName || '',
+            startTime: s.startTime || '',
+            endTime: s.endTime || '',
+            totalSeats: s.totalSeats || 0,
+            remainingSeats: s.remainingSeats || 0,
+            screenName: s.screenName || '',
+          }));
+        } else if (store.type === 'cgv') {
+          const res = await getCgvTimetable(store.storeCode);
+          const list = res?.data?.timetable || [];
+          seats = list.map((s: any) => ({
+            movieName: s.movieName || '',
+            startTime: s.startTime || '',
+            endTime: s.endTime || '',
+            totalSeats: s.totalSeats || 0,
+            remainingSeats: s.remainingSeats || 0,
+            screenName: s.screenName || '',
+          }));
+        }
+
+        setShowtimes(seats);
+      } catch {
+        setShowtimes([]);
+      }
+      setShowtimeLoading(false);
+    } else {
+      setViewState('map');
+    }
+  }, []);
+
   const handleSearch = useCallback(async (query: string) => {
     setSearchLoading(true);
+    setSelectedStore(null);
     setViewState('products');
     try {
       const res = await searchDaisoProducts(query);
@@ -215,7 +283,7 @@ export default function Home() {
           lat={geo.lat}
           lng={geo.lng}
           stores={filteredStores}
-          onStoreClick={setSelectedStore}
+          onStoreClick={handleStoreClick}
         />
 
         {geo.error && (
@@ -227,6 +295,18 @@ export default function Home() {
 
         {selectedStore && viewState === 'map' && (
           <StoreDetail store={selectedStore} onClose={() => setSelectedStore(null)} />
+        )}
+
+        {viewState === 'showtimes' && selectedStore && (
+          <ShowtimeList
+            store={selectedStore}
+            showtimes={showtimes}
+            loading={showtimeLoading}
+            onClose={() => {
+              setViewState('map');
+              setSelectedStore(null);
+            }}
+          />
         )}
 
         {viewState === 'products' && (

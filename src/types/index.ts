@@ -9,7 +9,26 @@ export interface StoreInfo {
   storeCode?: string;
   distance?: string;
   phone?: string;
+  regionCode?: string;
+  regionDetailCode?: string;
 }
+
+export interface ShowtimeInfo {
+  movieName: string;
+  startTime: string;
+  endTime: string;
+  totalSeats: number;
+  remainingSeats: number;
+  screenName?: string;
+}
+
+export const CINEMA_TYPES: StoreType[] = ['megabox', 'lottecinema', 'cgv'];
+
+export const BOOKING_URLS: Record<string, string> = {
+  megabox: 'https://www.megabox.co.kr/booking',
+  lottecinema: 'https://www.lottecinema.co.kr/NLCHS/Ticketing',
+  cgv: 'https://www.cgv.co.kr/ticket/',
+};
 
 export interface ProductInfo {
   id: string;

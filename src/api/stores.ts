@@ -67,3 +67,20 @@ export async function getCgvTheaters(lat: number, lng: number) {
   const res = await fetch(`/api/cgv-locations?lat=${lat}&lng=${lng}`);
   return res.json();
 }
+
+// 영화 상영 정보
+export async function getMegaboxSeats(theaterId: string) {
+  const res = await fetch(`${BASE_URL}/api/megabox/seats?theaterId=${theaterId}`);
+  return res.json();
+}
+
+export async function getLottecinemaSeats(theaterId: string, regionCode: string, regionDetailCode: string) {
+  const res = await fetch(`${BASE_URL}/api/lottecinema/seats?theaterId=${theaterId}&regionCode=${regionCode}&regionDetailCode=${regionDetailCode}`);
+  return res.json();
+}
+
+export async function getCgvTimetable(theaterCode: string) {
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const res = await fetch(`${BASE_URL}/api/cgv/timetable?playDate=${today}&theaterCode=${theaterCode}`);
+  return res.json();
+}
