@@ -9,8 +9,8 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "ㄹㅇ있맵",
-  description: "다이소, 올리브영, CU, 이마트24, 영화관 - ㄹㅇ 다 있는 맵",
+  title: "ㄹㅇ있맵 - 내 주변 매장 찾기",
+  description: "내 주변 다이소, 올리브영, CU, 이마트24, 영화관 매장 찾기 & 재고 확인",
   icons: {
     icon: [
       { url: '/icon.svg', type: 'image/svg+xml' },

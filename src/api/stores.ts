@@ -48,8 +48,13 @@ export async function getEmart24Stores(lat: number, lng: number) {
   return res.json();
 }
 
-export async function getEmart24Inventory(keyword: string, lat: number, lng: number) {
-  const res = await fetch(`${BASE_URL}/api/emart24/inventory?keyword=${encodeURIComponent(keyword)}&lat=${lat}&lng=${lng}`);
+export async function searchEmart24Products(keyword: string, page = 1) {
+  const res = await fetch(`${BASE_URL}/api/emart24/products?keyword=${encodeURIComponent(keyword)}&page=${page}&pageSize=20`);
+  return res.json();
+}
+
+export async function getEmart24Inventory(pluCd: string, bizNoArr: string) {
+  const res = await fetch(`${BASE_URL}/api/emart24/inventory?pluCd=${pluCd}&bizNoArr=${bizNoArr}`);
   return res.json();
 }
 

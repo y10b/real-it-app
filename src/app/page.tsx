@@ -23,6 +23,7 @@ import {
   getDaisoInventory,
   getOliveyoungInventory,
   getCuInventory,
+  searchEmart24Products,
   getEmart24Inventory,
   getMegaboxSeats,
   getLottecinemaSeats,
@@ -228,45 +229,42 @@ export default function Home() {
             : [];
         })
         .catch(() => [] as ProductInfo[]),
-      // CU
+      // CU - inventory API가 상품 목록 + 매장 재고를 동시에 반환
       getCuInventory(query, geo.lat, geo.lng)
         .then((res) => {
-          const stores = res?.data?.nearbyStores?.stores || res?.data?.stores || [];
+          const items = res?.data?.inventory?.items || [];
+          if (!Array.isArray(items) || items.length === 0) return [];
+          return items.slice(0, 20).map((p: any): ProductInfo => ({
+            id: p.itemCode || p.onItemNo || '',
+            name: p.itemName || '',
+            price: p.price || 0,
+            source: 'cu',
+          }));
+        })
+        .catch(() => [] as ProductInfo[]),
+      // 올리브영 - 매장 재고만 반환, 상품 목록 없음 → 단일 항목으로 표시
+      getOliveyoungInventory(query, geo.lat, geo.lng)
+        .then((res) => {
+          const stores = res?.data?.nearbyStores?.stores || [];
           if (!Array.isArray(stores) || stores.length === 0) return [];
-          // CU는 매장별 재고를 반환하므로, 상품 하나로 묶어서 표시
+          const totalStock = stores.reduce((sum: number, s: any) => sum + (s.o2oRemainQuantity || 0), 0);
           return [{
-            id: `cu-${query}`,
-            name: query,
+            id: `oy-${query}`,
+            name: `${query} (${stores.length}개 매장, 재고 ${totalStock}개)`,
             price: 0,
-            source: 'cu' as const,
+            source: 'oliveyoung' as const,
           }] as ProductInfo[];
         })
         .catch(() => [] as ProductInfo[]),
-      // 올리브영
-      getOliveyoungInventory(query, geo.lat, geo.lng)
+      // 이마트24 - products 엔드포인트로 상품 검색
+      searchEmart24Products(query)
         .then((res) => {
-          const list = res?.data?.products || res?.data?.inventory || res?.data || [];
-          return Array.isArray(list)
+          const list = res?.data?.products || [];
+          return Array.isArray(list) && list.length > 0
             ? list.map((p: any): ProductInfo => ({
-                id: p.id || p.productId || p.goodsNo || '',
-                name: p.name || p.productName || p.goodsNm || query,
-                price: p.price || p.salePrice || 0,
-                imageUrl: p.imageUrl || p.image || '',
-                source: 'oliveyoung',
-              }))
-            : [];
-        })
-        .catch(() => [] as ProductInfo[]),
-      // 이마트24
-      getEmart24Inventory(query, geo.lat, geo.lng)
-        .then((res) => {
-          const list = res?.data?.products || res?.data?.inventory || res?.data || [];
-          return Array.isArray(list)
-            ? list.map((p: any): ProductInfo => ({
-                id: p.id || p.productId || p.pluCd || '',
-                name: p.name || p.productName || query,
-                price: p.price || p.salePrice || 0,
-                imageUrl: p.imageUrl || p.image || '',
+                id: p.pluCd || '',
+                name: p.goodsName || '',
+                price: p.viewPrice || p.originPrice || 0,
                 source: 'emart24',
                 pluCd: p.pluCd || '',
               }))
@@ -326,17 +324,80 @@ export default function Home() {
         const storeList = res?.data?.storeInventory?.stores || res?.data?.stores || res?.data?.inventory || [];
         mapped = parseInventoryList(storeList, 'daiso');
       } else if (product.source === 'cu') {
+        // CU: 상품명으로 재검색하여 nearbyStores 가져오기
         const res = await getCuInventory(product.name, geo.lat, geo.lng);
-        const storeList = res?.data?.nearbyStores?.stores || res?.data?.stores || [];
-        mapped = parseInventoryList(storeList, 'cu');
+        const storeList = res?.data?.nearbyStores?.stores || [];
+        mapped = Array.isArray(storeList) ? storeList.map((s: any): InventoryInfo => {
+          const qty = s.stock ?? null;
+          let stockLabel: string;
+          if (qty === null || qty === undefined) stockLabel = '정보없음';
+          else if (qty === 0) stockLabel = '품절';
+          else if (qty <= 5) stockLabel = `소량 (${qty}개)`;
+          else stockLabel = `재고있음 (${qty}개)`;
+          return {
+            storeName: s.storeName || '',
+            storeCode: s.storeCode || '',
+            address: s.address || '',
+            stock: stockLabel,
+            distance: s.distanceM ? `${(s.distanceM / 1000).toFixed(1)}km` : '',
+            lat: s.latitude,
+            lng: s.longitude,
+            source: 'cu',
+          };
+        }) : [];
       } else if (product.source === 'oliveyoung') {
-        const res = await getOliveyoungInventory(product.name, geo.lat, geo.lng);
-        const storeList = res?.data?.nearbyStores?.stores || res?.data?.stores || res?.data?.inventory || [];
-        mapped = parseInventoryList(storeList, 'oliveyoung');
-      } else if (product.source === 'emart24') {
-        const res = await getEmart24Inventory(product.name, geo.lat, geo.lng);
-        const storeList = res?.data?.nearbyStores?.stores || res?.data?.stores || res?.data?.inventory || [];
-        mapped = parseInventoryList(storeList, 'emart24');
+        // 올리브영: nearbyStores에 o2oRemainQuantity로 재고 표시
+        const keyword = product.name.replace(/\s*\(.*\)$/, ''); // "(N개 매장...)" 제거
+        const res = await getOliveyoungInventory(keyword, geo.lat, geo.lng);
+        const storeList = res?.data?.nearbyStores?.stores || [];
+        mapped = Array.isArray(storeList) ? storeList.map((s: any): InventoryInfo => {
+          const qty = s.o2oRemainQuantity ?? s.stock ?? null;
+          let stockLabel: string;
+          if (qty === null || qty === undefined) stockLabel = '정보없음';
+          else if (qty === 0) stockLabel = '품절';
+          else if (qty <= 5) stockLabel = `소량 (${qty}개)`;
+          else stockLabel = `재고있음 (${qty}개)`;
+          return {
+            storeName: s.storeName || '',
+            storeCode: s.storeCode || '',
+            address: s.address || '',
+            stock: stockLabel,
+            distance: '',
+            lat: s.latitude,
+            lng: s.longitude,
+            source: 'oliveyoung',
+          };
+        }) : [];
+      } else if (product.source === 'emart24' && product.pluCd) {
+        // 1. 주변 매장 목록 가져오기
+        const storesRes = await getEmart24Stores(geo.lat, geo.lng);
+        const nearbyStores = storesRes?.data?.stores || [];
+        if (Array.isArray(nearbyStores) && nearbyStores.length > 0) {
+          // 2. 매장 코드 목록으로 재고 조회 (최대 30개)
+          const bizNoArr = nearbyStores.slice(0, 30).map((s: any) => s.storeCode).join(',');
+          const invRes = await getEmart24Inventory(product.pluCd, bizNoArr);
+          const invStores = invRes?.data?.stores || [];
+          // 매장 정보 매핑 (재고 API는 bizNo, bizQty만 반환하므로 주변 매장 정보와 합침)
+          const storeMap = new Map(nearbyStores.map((s: any) => [s.storeCode, s]));
+          mapped = Array.isArray(invStores) ? invStores.map((s: any): InventoryInfo => {
+            const info: any = storeMap.get(s.bizNo) || {};
+            const qty = s.bizQty ?? 0;
+            let stockLabel: string;
+            if (qty === 0) stockLabel = '품절';
+            else if (qty <= 5) stockLabel = `소량 (${qty}개)`;
+            else stockLabel = `재고있음 (${qty}개)`;
+            return {
+              storeName: s.storeName || info.storeName || '',
+              storeCode: s.bizNo || '',
+              address: s.address || info.address || '',
+              stock: stockLabel,
+              distance: info.distanceM ? `${(info.distanceM / 1000).toFixed(1)}km` : '',
+              lat: info.latitude,
+              lng: info.longitude,
+              source: 'emart24',
+            };
+          }).filter((s) => s.stock !== '품절') : [];
+        }
       }
 
       setInventory(mapped);
