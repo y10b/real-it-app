@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import KakaoMap from '@/components/KakaoMap';
 import StoreFilter from '@/components/StoreFilter';
 import SearchBar from '@/components/SearchBar';
@@ -47,6 +47,8 @@ export default function Home() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [storesLoading, setStoresLoading] = useState(false);
   const [showtimeLoading, setShowtimeLoading] = useState(false);
+  // CU/올리브영 검색 시 반환된 매장 재고 캐시
+  const cachedStoresRef = useRef<{ cu: any[]; oliveyoung: any[] }>({ cu: [], oliveyoung: [] });
   const [viewState, setViewState] = useState<ViewState>('map');
 
   const parseStores = (data: any, type: StoreType): StoreInfo[] => {
@@ -233,6 +235,9 @@ export default function Home() {
       getCuInventory(query, geo.lat, geo.lng)
         .then((res) => {
           const items = res?.data?.inventory?.items || [];
+          const nearbyStores = res?.data?.nearbyStores?.stores || [];
+          // 매장 재고 캐시
+          cachedStoresRef.current.cu = nearbyStores;
           if (!Array.isArray(items) || items.length === 0) return [];
           return items.slice(0, 20).map((p: any): ProductInfo => ({
             id: p.itemCode || p.onItemNo || '',
@@ -246,6 +251,8 @@ export default function Home() {
       getOliveyoungInventory(query, geo.lat, geo.lng)
         .then((res) => {
           const stores = res?.data?.nearbyStores?.stores || [];
+          // 매장 재고 캐시
+          cachedStoresRef.current.oliveyoung = stores;
           if (!Array.isArray(stores) || stores.length === 0) return [];
           const totalStock = stores.reduce((sum: number, s: any) => sum + (s.o2oRemainQuantity || 0), 0);
           return [{
@@ -324,9 +331,8 @@ export default function Home() {
         const storeList = res?.data?.storeInventory?.stores || res?.data?.stores || res?.data?.inventory || [];
         mapped = parseInventoryList(storeList, 'daiso');
       } else if (product.source === 'cu') {
-        // CU: 상품명으로 재검색하여 nearbyStores 가져오기
-        const res = await getCuInventory(product.name, geo.lat, geo.lng);
-        const storeList = res?.data?.nearbyStores?.stores || [];
+        // CU: 캐시된 매장 재고 사용 (검색 시 이미 받아옴)
+        const storeList = cachedStoresRef.current.cu;
         mapped = Array.isArray(storeList) ? storeList.map((s: any): InventoryInfo => {
           const qty = s.stock ?? null;
           let stockLabel: string;
@@ -346,10 +352,8 @@ export default function Home() {
           };
         }) : [];
       } else if (product.source === 'oliveyoung') {
-        // 올리브영: nearbyStores에 o2oRemainQuantity로 재고 표시
-        const keyword = product.name.replace(/\s*\(.*\)$/, ''); // "(N개 매장...)" 제거
-        const res = await getOliveyoungInventory(keyword, geo.lat, geo.lng);
-        const storeList = res?.data?.nearbyStores?.stores || [];
+        // 올리브영: 캐시된 매장 재고 사용 (검색 시 이미 받아옴)
+        const storeList = cachedStoresRef.current.oliveyoung;
         mapped = Array.isArray(storeList) ? storeList.map((s: any): InventoryInfo => {
           const qty = s.o2oRemainQuantity ?? s.stock ?? null;
           let stockLabel: string;
