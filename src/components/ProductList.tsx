@@ -33,21 +33,12 @@ export default function ProductList({ products, onSelect, onClose }: Props) {
                   <div className="w-12 h-12 rounded-lg shrink-0 bg-gray-200 flex items-center justify-center overflow-hidden">
                     {product.imageUrl ? (
                       <img
-                        src={product.imageUrl}
+                        src={product.imageUrl.replace('img.daisomall.co.kr', 'cdn.daisomall.co.kr')}
                         alt={product.name}
-                        referrerPolicy="no-referrer"
-                        crossOrigin="anonymous"
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          const img = e.target as HTMLImageElement;
-                          // 첫 번째 실패: 프록시로 재시도
-                          if (!img.dataset.retried) {
-                            img.dataset.retried = '1';
-                            img.src = `/api/image?url=${encodeURIComponent(product.imageUrl!)}`;
-                          } else {
-                            img.style.display = 'none';
-                            img.parentElement!.innerHTML = '<span style="font-size:18px">🛒</span>';
-                          }
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          (e.target as HTMLImageElement).parentElement!.innerHTML = '<span style="font-size:18px">🛒</span>';
                         }}
                       />
                     ) : (

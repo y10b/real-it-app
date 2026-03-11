@@ -6,60 +6,48 @@ export async function GET(req: NextRequest) {
   const lat = req.nextUrl.searchParams.get('lat') || '37.5665';
   const lng = req.nextUrl.searchParams.get('lng') || '126.978';
 
-  // CGV 극장 목록 가져오기
-  const cgvRes = await fetch('https://mcp.aka.page/api/cgv/theaters');
-  const cgvData = await cgvRes.json();
-  const theaters = cgvData?.data?.theaters || [];
-
-  if (!KAKAO_REST_KEY || theaters.length === 0) {
-    return NextResponse.json({ theaters: [] });
+  if (!KAKAO_REST_KEY) {
+    return NextResponse.json({ theaters: [], error: 'KAKAO_REST_API_KEY not set' });
   }
 
-  // 카카오 키워드 검색으로 좌표 찾기 (최대 10개만 - API 호출 절약)
+  // 카카오 키워드 검색으로 주변 CGV를 직접 검색 (가장 정확)
   const userLat = Number(lat);
   const userLng = Number(lng);
-  const results: Array<{
-    theaterCode: string;
-    theaterName: string;
-    address: string;
-    lat: number;
-    lng: number;
-    distance: string;
-  }> = [];
 
-  const searches = theaters.slice(0, 15).map(async (t: any) => {
-    try {
-      const query = `CGV ${t.theaterName}`;
-      const res = await fetch(
-        `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}&x=${lng}&y=${lat}&sort=accuracy&size=1`,
-        { headers: { Authorization: `KakaoAK ${KAKAO_REST_KEY}` } }
-      );
-      const data = await res.json();
-      const place = data?.documents?.[0];
-      if (place) {
-        const placeLat = Number(place.y);
-        const placeLng = Number(place.x);
+  try {
+    const res = await fetch(
+      `https://dapi.kakao.com/v2/local/search/keyword.json?query=CGV&x=${lng}&y=${lat}&radius=20000&sort=distance&size=15&category_group_code=CT1`,
+      { headers: { Authorization: `KakaoAK ${KAKAO_REST_KEY}` } }
+    );
+    const data = await res.json();
+    const places = data?.documents || [];
+
+    const theaters = places
+      .filter((p: any) => p.place_name?.includes('CGV'))
+      .map((p: any) => {
+        const placeLat = Number(p.y);
+        const placeLng = Number(p.x);
         const dist = getDistance(userLat, userLng, placeLat, placeLng);
-        results.push({
-          theaterCode: t.theaterCode,
-          theaterName: `CGV ${t.theaterName}`,
-          address: place.road_address_name || place.address_name || '',
+
+        // CGV 극장 코드 추출 시도 (place_name에서)
+        const name = p.place_name || '';
+        const theaterName = name.replace(/^CGV\s*/, '');
+
+        return {
+          theaterCode: p.id || '',
+          theaterName: name,
+          address: p.road_address_name || p.address_name || '',
           lat: placeLat,
           lng: placeLng,
           distance: dist.toFixed(1),
-        });
-      }
-    } catch {
-      // skip
-    }
-  });
+          phone: p.phone || '',
+        };
+      });
 
-  await Promise.all(searches);
-
-  // 거리순 정렬 후 가까운 10개만 반환
-  results.sort((a, b) => Number(a.distance) - Number(b.distance));
-
-  return NextResponse.json({ theaters: results.slice(0, 10) });
+    return NextResponse.json({ theaters });
+  } catch {
+    return NextResponse.json({ theaters: [], error: 'search failed' });
+  }
 }
 
 function getDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
