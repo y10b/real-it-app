@@ -11,6 +11,13 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: "ㄹㅇ있맵",
   description: "다이소, 올리브영, CU, 이마트24, 영화관 - ㄹㅇ 다 있는 맵",
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 export default function RootLayout({

@@ -6,9 +6,10 @@ interface Props {
   items: InventoryInfo[];
   storeName: string;
   onClose: () => void;
+  onStoreSelect?: (item: InventoryInfo) => void;
 }
 
-export default function InventoryList({ items, storeName, onClose }: Props) {
+export default function InventoryList({ items, storeName, onClose, onStoreSelect }: Props) {
   return (
     <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] z-30 animate-slide-up max-h-[60vh] flex flex-col">
       <div className="flex items-center justify-between p-4 border-b border-gray-100">
@@ -25,17 +26,32 @@ export default function InventoryList({ items, storeName, onClose }: Props) {
         ) : (
           <ul className="space-y-3">
             {items.map((item, i) => (
-              <li key={i} className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-xl">
+              <li
+                key={i}
+                className={`flex items-center justify-between py-3 px-4 bg-gray-50 rounded-xl ${
+                  item.lat && item.lng ? 'cursor-pointer hover:bg-gray-100 active:bg-gray-200 transition-colors' : ''
+                }`}
+                onClick={() => {
+                  if (item.lat && item.lng && onStoreSelect) {
+                    onStoreSelect(item);
+                  }
+                }}
+              >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{item.storeName}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{item.storeName}</p>
+                    {item.lat && item.lng && (
+                      <span className="text-[10px] text-blue-400 shrink-0">지도보기</span>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-400 truncate">{item.address}</p>
                   {item.distance && <p className="text-xs text-blue-500 mt-0.5">{item.distance}</p>}
                 </div>
                 <span
                   className={`shrink-0 ml-3 px-3 py-1 rounded-full text-xs font-bold ${
-                    item.stock === '재고있음' || item.stock === '충분'
+                    item.stock.includes('재고있음')
                       ? 'bg-green-100 text-green-700'
-                      : item.stock === '부족' || item.stock === '소량'
+                      : item.stock.includes('소량')
                         ? 'bg-yellow-100 text-yellow-700'
                         : 'bg-red-100 text-red-700'
                   }`}

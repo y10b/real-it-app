@@ -39,25 +39,49 @@ export default function Home() {
   const [products, setProducts] = useState<ProductInfo[]>([]);
   const [inventory, setInventory] = useState<InventoryInfo[]>([]);
   const [showtimes, setShowtimes] = useState<ShowtimeInfo[]>([]);
+  const [focusLocation, setFocusLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [storesLoading, setStoresLoading] = useState(false);
   const [showtimeLoading, setShowtimeLoading] = useState(false);
   const [viewState, setViewState] = useState<ViewState>('map');
+
+  const parseStores = (data: any, type: StoreType): StoreInfo[] => {
+    const storeList = data?.theaters || data?.data?.stores || data?.data?.theaters || data?.data || [];
+    if (!Array.isArray(storeList)) return [];
+
+    return storeList
+      .map((s: any) => {
+        const storeLat = s.lat || s.latitude;
+        const storeLng = s.lng || s.longitude;
+        if (!storeLat || !storeLng) return null;
+
+        return {
+          type,
+          name: s.name || s.storeName || s.theaterName || '',
+          address: s.address || s.addr || '',
+          lat: Number(storeLat),
+          lng: Number(storeLng),
+          storeCode: s.storeCode || s.theaterCode || s.theaterId || s.code || '',
+          distance: s.distance || s.distanceKm || '',
+          phone: s.phone || s.tel || '',
+          regionCode: s.regionCode || '',
+          regionDetailCode: s.regionDetailCode || '',
+        } as StoreInfo;
+      })
+      .filter(Boolean) as StoreInfo[];
+  };
 
   const loadNearbyStores = useCallback(async (
     lat: number, lng: number, filters: Set<StoreType>,
     region: { sido: string; gugun: string; dong: string }
   ) => {
     setStoresLoading(true);
-    const results: StoreInfo[] = [];
+    setStores([]);
 
     const fetchers: Array<{ type: StoreType; fn: () => Promise<any> }> = [];
 
     if (filters.has('daiso')) {
-      fetchers.push({
-        type: 'daiso',
-        fn: () => getDaisoStores({ sido: region.sido, gugun: region.gugun }),
-      });
+      fetchers.push({ type: 'daiso', fn: () => getDaisoStores({ sido: region.sido, gugun: region.gugun }) });
     }
     if (filters.has('oliveyoung')) {
       fetchers.push({ type: 'oliveyoung', fn: () => getOliveyoungStores(lat, lng) });
@@ -78,38 +102,24 @@ export default function Home() {
       fetchers.push({ type: 'cgv', fn: () => getCgvTheaters(lat, lng) });
     }
 
-    const responses = await Promise.allSettled(fetchers.map((f) => f.fn()));
-
-    responses.forEach((res, i) => {
-      if (res.status !== 'fulfilled') return;
-      const data = res.value;
-      const type = fetchers[i].type;
-
-      const storeList = data?.theaters || data?.data?.stores || data?.data?.theaters || data?.data || [];
-      if (!Array.isArray(storeList)) return;
-
-      storeList.forEach((s: any) => {
-        const storeLat = s.lat || s.latitude;
-        const storeLng = s.lng || s.longitude;
-        if (!storeLat || !storeLng) return;
-
-        results.push({
-          type,
-          name: s.name || s.storeName || s.theaterName || '',
-          address: s.address || s.addr || '',
-          lat: Number(storeLat),
-          lng: Number(storeLng),
-          storeCode: s.storeCode || s.theaterCode || s.theaterId || s.code || '',
-          distance: s.distance || s.distanceKm || '',
-          phone: s.phone || s.tel || '',
-          regionCode: s.regionCode || '',
-          regionDetailCode: s.regionDetailCode || '',
+    // 각 API가 응답하는 대로 즉시 지도에 반영
+    let pending = fetchers.length;
+    fetchers.forEach(({ type, fn }) => {
+      fn()
+        .then((data) => {
+          const parsed = parseStores(data, type);
+          if (parsed.length > 0) {
+            setStores((prev) => [...prev, ...parsed]);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          pending--;
+          if (pending === 0) setStoresLoading(false);
         });
-      });
     });
 
-    setStores(results);
-    setStoresLoading(false);
+    if (fetchers.length === 0) setStoresLoading(false);
   }, []);
 
   useEffect(() => {
@@ -284,6 +294,7 @@ export default function Home() {
           lng={geo.lng}
           stores={filteredStores}
           onStoreClick={handleStoreClick}
+          focusLocation={focusLocation}
         />
 
         {geo.error && (
@@ -322,6 +333,12 @@ export default function Home() {
             items={inventory}
             storeName=""
             onClose={() => setViewState('products')}
+            onStoreSelect={(item) => {
+              if (item.lat && item.lng) {
+                setFocusLocation({ lat: item.lat, lng: item.lng });
+                setViewState('map');
+              }
+            }}
           />
         )}
       </div>

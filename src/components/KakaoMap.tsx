@@ -14,13 +14,15 @@ interface Props {
   lng: number;
   stores: StoreInfo[];
   onStoreClick?: (store: StoreInfo) => void;
+  focusLocation?: { lat: number; lng: number } | null;
 }
 
-export default function KakaoMap({ lat, lng, stores, onStoreClick }: Props) {
+export default function KakaoMap({ lat, lng, stores, onStoreClick, focusLocation }: Props) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const overlaysRef = useRef<any[]>([]);
+  const focusMarkerRef = useRef<any>(null);
 
   const initMap = useCallback(() => {
     if (!mapRef.current || !window.kakao?.maps) return;
@@ -32,7 +34,6 @@ export default function KakaoMap({ lat, lng, stores, onStoreClick }: Props) {
     });
     mapInstanceRef.current = map;
 
-    // 현재 위치 마커
     const currentMarker = new window.kakao.maps.Marker({
       position: center,
       map,
@@ -59,7 +60,6 @@ export default function KakaoMap({ lat, lng, stores, onStoreClick }: Props) {
     const map = mapInstanceRef.current;
     if (!map || !window.kakao?.maps) return;
 
-    // 기존 매장 마커 제거 (현재 위치 마커/오버레이는 유지)
     markersRef.current.slice(1).forEach((m) => m.setMap(null));
     overlaysRef.current.slice(1).forEach((o) => o.setMap(null));
     markersRef.current = markersRef.current.slice(0, 1);
@@ -97,6 +97,37 @@ export default function KakaoMap({ lat, lng, stores, onStoreClick }: Props) {
       overlaysRef.current.push(overlay);
     });
   }, [stores, onStoreClick]);
+
+  // 포커스 위치로 지도 이동 + 강조 마커
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !window.kakao?.maps || !focusLocation) return;
+
+    // 기존 포커스 마커 제거
+    if (focusMarkerRef.current) {
+      focusMarkerRef.current.setMap(null);
+    }
+
+    const pos = new window.kakao.maps.LatLng(focusLocation.lat, focusLocation.lng);
+    map.panTo(pos);
+    map.setLevel(3);
+
+    const marker = new window.kakao.maps.CustomOverlay({
+      content: `<div style="
+        width:20px;height:20px;
+        background:#EF4444;
+        border:3px solid white;
+        border-radius:50%;
+        box-shadow:0 0 0 4px rgba(239,68,68,0.3), 0 2px 8px rgba(0,0,0,0.3);
+        animation: pulse 1.5s ease-in-out infinite;
+      "></div>`,
+      position: pos,
+      yAnchor: 0.5,
+      map,
+    });
+
+    focusMarkerRef.current = marker;
+  }, [focusLocation]);
 
   return (
     <div
