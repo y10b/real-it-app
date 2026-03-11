@@ -63,7 +63,7 @@ export async function getLottecinemaTheaters(lat: number, lng: number) {
   return res.json();
 }
 
-export async function getCgvTheaters() {
-  const res = await fetch(`${BASE_URL}/api/cgv/theaters`);
+export async function getCgvTheaters(lat: number, lng: number) {
+  const res = await fetch(`/api/cgv-locations?lat=${lat}&lng=${lng}`);
   return res.json();
 }

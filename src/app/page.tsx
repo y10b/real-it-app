@@ -69,7 +69,7 @@ export default function Home() {
       fetchers.push({ type: 'lottecinema', fn: () => getLottecinemaTheaters(lat, lng) });
     }
     if (filters.has('cgv')) {
-      fetchers.push({ type: 'cgv', fn: () => getCgvTheaters() });
+      fetchers.push({ type: 'cgv', fn: () => getCgvTheaters(lat, lng) });
     }
 
     const responses = await Promise.allSettled(fetchers.map((f) => f.fn()));
@@ -79,7 +79,7 @@ export default function Home() {
       const data = res.value;
       const type = fetchers[i].type;
 
-      const storeList = data?.data?.stores || data?.data?.theaters || data?.data || [];
+      const storeList = data?.theaters || data?.data?.stores || data?.data?.theaters || data?.data || [];
       if (!Array.isArray(storeList)) return;
 
       storeList.forEach((s: any) => {
