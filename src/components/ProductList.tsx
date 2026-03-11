@@ -36,8 +36,7 @@ export default function ProductList({ products, onSelect, onClose, loading }: Pr
                 <li key={`${product.source}-${product.id}-${idx}`}>
                   <button
                     onClick={() => onSelect(product)}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:brightness-95 transition-all text-left"
-                    style={{ background: `${meta.color}10` }}
+                    className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors text-left"
                   >
                     <div className="w-12 h-12 rounded-lg shrink-0 bg-white/80 flex items-center justify-center overflow-hidden">
                       {product.imageUrl ? (

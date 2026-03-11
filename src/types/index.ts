@@ -58,6 +58,6 @@ export const STORE_META: Record<StoreType, { label: string; color: string; emoji
   emart24: { label: '이마트24', color: '#FFB81C', emoji: '🟡' },
   oliveyoung: { label: '올리브영', color: '#9FCE67', emoji: '🟢' },
   megabox: { label: '메가박스', color: '#352263', emoji: '🎬' },
-  lottecinema: { label: '롯데시네마', color: '#E40012', emoji: '🎞️' },
-  cgv: { label: 'CGV', color: '#E71A0F', emoji: '🎥' },
+  lottecinema: { label: '롯데시네마', color: '#C62368', emoji: '🎞️' },
+  cgv: { label: 'CGV', color: '#F57C00', emoji: '🎥' },
 };
