@@ -32,7 +32,7 @@ export default function ProductList({ products, onSelect, onClose }: Props) {
                 >
                   {product.imageUrl && (
                     <img
-                      src={product.imageUrl}
+                      src={`/api/image?url=${encodeURIComponent(product.imageUrl)}`}
                       alt={product.name}
                       className="w-12 h-12 rounded-lg object-cover shrink-0 bg-white"
                     />
