@@ -152,17 +152,30 @@ export default function Home() {
     setViewState('inventory');
     try {
       const res = await getDaisoInventory(product.id, geo.lat, geo.lng);
-      const list = res?.data?.stores || res?.data?.inventory || res?.data || [];
-      const mapped: InventoryInfo[] = Array.isArray(list)
-        ? list.map((s: any) => ({
-            storeName: s.storeName || s.name || '',
-            storeCode: s.storeCode || '',
-            address: s.address || s.addr || '',
-            stock: s.stockStatus || s.stock || s.inventoryStatus || '정보없음',
-            distance: s.distance || '',
-            lat: s.lat,
-            lng: s.lng,
-          }))
+      const storeInventory = res?.data?.storeInventory?.stores || res?.data?.stores || res?.data?.inventory || [];
+      const mapped: InventoryInfo[] = Array.isArray(storeInventory)
+        ? storeInventory.map((s: any) => {
+            const qty = s.quantity ?? s.stock ?? null;
+            let stockLabel: string;
+            if (qty === null || qty === undefined) {
+              stockLabel = '정보없음';
+            } else if (qty === 0) {
+              stockLabel = '품절';
+            } else if (qty <= 5) {
+              stockLabel = `소량 (${qty}개)`;
+            } else {
+              stockLabel = `재고있음 (${qty}개)`;
+            }
+            return {
+              storeName: s.storeName || s.name || '',
+              storeCode: s.storeCode || '',
+              address: s.address || s.addr || '',
+              stock: stockLabel,
+              distance: s.distance ? `${s.distance}km` : '',
+              lat: s.lat,
+              lng: s.lng,
+            };
+          })
         : [];
       setInventory(mapped);
     } catch {

@@ -30,13 +30,21 @@ export default function ProductList({ products, onSelect, onClose }: Props) {
                   onClick={() => onSelect(product)}
                   className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors text-left"
                 >
-                  {product.imageUrl && (
-                    <img
-                      src={`/api/image?url=${encodeURIComponent(product.imageUrl)}`}
-                      alt={product.name}
-                      className="w-12 h-12 rounded-lg object-cover shrink-0 bg-white"
-                    />
-                  )}
+                  <div className="w-12 h-12 rounded-lg shrink-0 bg-gray-200 flex items-center justify-center overflow-hidden">
+                    {product.imageUrl ? (
+                      <img
+                        src={`/api/image?url=${encodeURIComponent(product.imageUrl)}`}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          (e.target as HTMLImageElement).parentElement!.innerHTML = '<span style="font-size:18px">🛒</span>';
+                        }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: 18 }}>🛒</span>
+                    )}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate">{product.name}</p>
                     <p className="text-sm text-red-500 font-bold">{product.price.toLocaleString()}원</p>

@@ -16,8 +16,10 @@ export async function GET(req: NextRequest) {
 
     const res = await fetch(url, {
       headers: {
-        Referer: `https://${parsed.hostname}/`,
-        'User-Agent': 'Mozilla/5.0',
+        Referer: 'https://www.daisomall.co.kr/',
+        Origin: 'https://www.daisomall.co.kr',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
       },
     });
 
