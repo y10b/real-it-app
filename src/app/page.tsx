@@ -21,6 +21,9 @@ import {
   getCgvTheaters,
   searchDaisoProducts,
   getDaisoInventory,
+  getOliveyoungInventory,
+  getCuInventory,
+  getEmart24Inventory,
   getMegaboxSeats,
   getLottecinemaSeats,
   getCgvTimetable,
@@ -206,55 +209,136 @@ export default function Home() {
   const handleSearch = useCallback(async (query: string) => {
     setSearchLoading(true);
     setSelectedStore(null);
+    setProducts([]);
     setViewState('products');
-    try {
-      const res = await searchDaisoProducts(query);
-      const list = res?.data?.products || res?.data || [];
-      const mapped: ProductInfo[] = Array.isArray(list)
-        ? list.map((p: any) => ({
-            id: p.id || p.productId || '',
-            name: p.name || p.productName || '',
-            price: p.price || p.salePrice || 0,
-            imageUrl: p.imageUrl || p.image || '',
-          }))
-        : [];
-      setProducts(mapped);
-    } catch {
-      setProducts([]);
-    }
+
+    const searches = [
+      // 다이소
+      searchDaisoProducts(query)
+        .then((res) => {
+          const list = res?.data?.products || res?.data || [];
+          return Array.isArray(list)
+            ? list.map((p: any): ProductInfo => ({
+                id: p.id || p.productId || '',
+                name: p.name || p.productName || '',
+                price: p.price || p.salePrice || 0,
+                imageUrl: p.imageUrl || p.image || '',
+                source: 'daiso',
+              }))
+            : [];
+        })
+        .catch(() => [] as ProductInfo[]),
+      // CU
+      getCuInventory(query, geo.lat, geo.lng)
+        .then((res) => {
+          const stores = res?.data?.nearbyStores?.stores || res?.data?.stores || [];
+          if (!Array.isArray(stores) || stores.length === 0) return [];
+          // CU는 매장별 재고를 반환하므로, 상품 하나로 묶어서 표시
+          return [{
+            id: `cu-${query}`,
+            name: query,
+            price: 0,
+            source: 'cu' as const,
+          }] as ProductInfo[];
+        })
+        .catch(() => [] as ProductInfo[]),
+      // 올리브영
+      getOliveyoungInventory(query, geo.lat, geo.lng)
+        .then((res) => {
+          const list = res?.data?.products || res?.data?.inventory || res?.data || [];
+          return Array.isArray(list)
+            ? list.map((p: any): ProductInfo => ({
+                id: p.id || p.productId || p.goodsNo || '',
+                name: p.name || p.productName || p.goodsNm || query,
+                price: p.price || p.salePrice || 0,
+                imageUrl: p.imageUrl || p.image || '',
+                source: 'oliveyoung',
+              }))
+            : [];
+        })
+        .catch(() => [] as ProductInfo[]),
+      // 이마트24
+      getEmart24Inventory(query, geo.lat, geo.lng)
+        .then((res) => {
+          const list = res?.data?.products || res?.data?.inventory || res?.data || [];
+          return Array.isArray(list)
+            ? list.map((p: any): ProductInfo => ({
+                id: p.id || p.productId || p.pluCd || '',
+                name: p.name || p.productName || query,
+                price: p.price || p.salePrice || 0,
+                imageUrl: p.imageUrl || p.image || '',
+                source: 'emart24',
+                pluCd: p.pluCd || '',
+              }))
+            : [];
+        })
+        .catch(() => [] as ProductInfo[]),
+    ];
+
+    // 각 결과가 오는 대로 바로 표시
+    searches.forEach((p) => {
+      p.then((items) => {
+        if (items.length > 0) {
+          setProducts((prev) => [...prev, ...items]);
+        }
+      });
+    });
+
+    await Promise.allSettled(searches);
     setSearchLoading(false);
-  }, []);
+  }, [geo.lat, geo.lng]);
+
+  const parseInventoryList = (stores: any[], source: StoreType): InventoryInfo[] => {
+    if (!Array.isArray(stores)) return [];
+    return stores.map((s: any) => {
+      const qty = s.quantity ?? s.stock ?? null;
+      let stockLabel: string;
+      if (qty === null || qty === undefined) {
+        stockLabel = '정보없음';
+      } else if (qty === 0) {
+        stockLabel = '품절';
+      } else if (qty <= 5) {
+        stockLabel = `소량 (${qty}개)`;
+      } else {
+        stockLabel = `재고있음 (${qty}개)`;
+      }
+      return {
+        storeName: s.storeName || s.name || '',
+        storeCode: s.storeCode || '',
+        address: s.address || s.addr || '',
+        stock: stockLabel,
+        distance: s.distance ? `${s.distance}km` : '',
+        lat: s.lat || s.latitude,
+        lng: s.lng || s.longitude,
+        source,
+      };
+    });
+  };
 
   const handleSelectProduct = useCallback(async (product: ProductInfo) => {
     setSearchLoading(true);
     setViewState('inventory');
     try {
-      const res = await getDaisoInventory(product.id, geo.lat, geo.lng);
-      const storeInventory = res?.data?.storeInventory?.stores || res?.data?.stores || res?.data?.inventory || [];
-      const mapped: InventoryInfo[] = Array.isArray(storeInventory)
-        ? storeInventory.map((s: any) => {
-            const qty = s.quantity ?? s.stock ?? null;
-            let stockLabel: string;
-            if (qty === null || qty === undefined) {
-              stockLabel = '정보없음';
-            } else if (qty === 0) {
-              stockLabel = '품절';
-            } else if (qty <= 5) {
-              stockLabel = `소량 (${qty}개)`;
-            } else {
-              stockLabel = `재고있음 (${qty}개)`;
-            }
-            return {
-              storeName: s.storeName || s.name || '',
-              storeCode: s.storeCode || '',
-              address: s.address || s.addr || '',
-              stock: stockLabel,
-              distance: s.distance ? `${s.distance}km` : '',
-              lat: s.lat,
-              lng: s.lng,
-            };
-          })
-        : [];
+      let mapped: InventoryInfo[] = [];
+
+      if (product.source === 'daiso') {
+        const res = await getDaisoInventory(product.id, geo.lat, geo.lng);
+        const storeList = res?.data?.storeInventory?.stores || res?.data?.stores || res?.data?.inventory || [];
+        mapped = parseInventoryList(storeList, 'daiso');
+      } else if (product.source === 'cu') {
+        const res = await getCuInventory(product.name, geo.lat, geo.lng);
+        const storeList = res?.data?.nearbyStores?.stores || res?.data?.stores || [];
+        mapped = parseInventoryList(storeList, 'cu');
+      } else if (product.source === 'oliveyoung') {
+        const res = await getOliveyoungInventory(product.name, geo.lat, geo.lng);
+        const storeList = res?.data?.nearbyStores?.stores || res?.data?.stores || res?.data?.inventory || [];
+        mapped = parseInventoryList(storeList, 'oliveyoung');
+      } else if (product.source === 'emart24') {
+        const res = await getEmart24Inventory(product.name, geo.lat, geo.lng);
+        const storeList = res?.data?.nearbyStores?.stores || res?.data?.stores || res?.data?.inventory || [];
+        mapped = parseInventoryList(storeList, 'emart24');
+      }
+
       setInventory(mapped);
     } catch {
       setInventory([]);
@@ -325,6 +409,7 @@ export default function Home() {
             products={products}
             onSelect={handleSelectProduct}
             onClose={() => setViewState('map')}
+            loading={searchLoading}
           />
         )}
 
@@ -333,12 +418,8 @@ export default function Home() {
             items={inventory}
             storeName=""
             onClose={() => setViewState('products')}
-            onStoreSelect={(item) => {
-              if (item.lat && item.lng) {
-                setFocusLocation({ lat: item.lat, lng: item.lng });
-                setViewState('map');
-              }
-            }}
+            userLat={geo.lat}
+            userLng={geo.lng}
           />
         )}
       </div>

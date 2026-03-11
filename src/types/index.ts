@@ -35,7 +35,11 @@ export interface ProductInfo {
   name: string;
   price: number;
   imageUrl?: string;
+  source: StoreType;
+  pluCd?: string; // 이마트24용
 }
+
+export type SearchableStore = 'daiso' | 'cu' | 'oliveyoung' | 'emart24';
 
 export interface InventoryInfo {
   storeName: string;
@@ -45,6 +49,7 @@ export interface InventoryInfo {
   distance?: string;
   lat?: number;
   lng?: number;
+  source?: StoreType;
 }
 
 export const STORE_META: Record<StoreType, { label: string; color: string; emoji: string }> = {
