@@ -69,7 +69,7 @@ export async function getLottecinemaTheaters(lat: number, lng: number) {
 }
 
 export async function getCgvTheaters(lat: number, lng: number) {
-  const res = await fetch(`/api/cgv-locations?lat=${lat}&lng=${lng}`);
+  const res = await fetch(`https://real-it-app.vercel.app/api/cgv-locations?lat=${lat}&lng=${lng}`);
   return res.json();
 }
 

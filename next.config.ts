@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
+const isToss = process.env.BUILD_TARGET === "toss";
+
 const nextConfig: NextConfig = {
-  /* config options here */
+  ...(isToss && {
+    output: "export",
+    distDir: "dist",
+  }),
 };
 
 export default nextConfig;
