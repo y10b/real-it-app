@@ -54,7 +54,11 @@ export default function SearchBar({ onSearch, loading }: Props) {
           return (
             <button
               key={cat.key}
-              onClick={() => setCategory(cat.key)}
+              onClick={() => {
+                setCategory(cat.key);
+                const trimmed = query.trim();
+                if (trimmed) onSearch(trimmed, cat.key);
+              }}
               className="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border"
               style={{
                 backgroundColor: colors.bg,
