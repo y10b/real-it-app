@@ -25,7 +25,7 @@ export default function InventoryList({ items, storeName, onClose, userLat, user
   };
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] z-30 animate-slide-up max-h-[60vh] flex flex-col">
+    <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.1)] z-30 animate-slide-up max-h-[40vh] flex flex-col">
       <div className="flex items-center justify-between p-4 border-b border-gray-100">
         <h3 className="text-base font-bold text-gray-900">
           재고 현황 <span className="text-sm font-normal text-gray-400">({items.length}개 매장)</span>

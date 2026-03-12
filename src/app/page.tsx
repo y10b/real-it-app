@@ -10,7 +10,7 @@ import InventoryList from '@/components/InventoryList';
 import ShowtimeList from '@/components/ShowtimeList';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { useReverseGeocode } from '@/hooks/useReverseGeocode';
-import { StoreType, StoreInfo, ProductInfo, InventoryInfo, ShowtimeInfo, CINEMA_TYPES } from '@/types';
+import { StoreType, StoreInfo, ProductInfo, InventoryInfo, ShowtimeInfo, CINEMA_TYPES, SearchCategory, SEARCH_CATEGORIES } from '@/types';
 import {
   getDaisoStores,
   getOliveyoungStores,
@@ -209,76 +209,91 @@ export default function Home() {
     }
   }, []);
 
-  const handleSearch = useCallback(async (query: string) => {
+  const handleSearch = useCallback(async (query: string, category: SearchCategory = 'all') => {
     setSearchLoading(true);
     setSelectedStore(null);
     setProducts([]);
     setViewState('products');
 
-    const searches = [
-      // 다이소
-      searchDaisoProducts(query)
-        .then((res) => {
-          const list = res?.data?.products || res?.data || [];
-          return Array.isArray(list)
-            ? list.map((p: any): ProductInfo => ({
-                id: p.id || p.productId || '',
-                name: p.name || p.productName || '',
-                price: p.price || p.salePrice || 0,
-                imageUrl: p.imageUrl || p.image || '',
-                source: 'daiso',
-              }))
-            : [];
-        })
-        .catch(() => [] as ProductInfo[]),
-      // CU - inventory API가 상품 목록 + 매장 재고를 동시에 반환
-      getCuInventory(query, geo.lat, geo.lng)
-        .then((res) => {
-          const items = res?.data?.inventory?.items || [];
-          const nearbyStores = res?.data?.nearbyStores?.stores || [];
-          // 매장 재고 캐시
-          cachedStoresRef.current.cu = nearbyStores;
-          if (!Array.isArray(items) || items.length === 0) return [];
-          return items.slice(0, 20).map((p: any): ProductInfo => ({
-            id: p.itemCode || p.onItemNo || '',
-            name: p.itemName || '',
-            price: p.price || 0,
-            source: 'cu',
-          }));
-        })
-        .catch(() => [] as ProductInfo[]),
-      // 올리브영 - 상품 목록 + 매장 재고 동시 반환
-      getOliveyoungInventory(query, geo.lat, geo.lng)
-        .then((res) => {
-          const stores = res?.data?.nearbyStores?.stores || [];
-          const products = res?.data?.inventory?.products || [];
-          // 매장 재고 캐시
-          cachedStoresRef.current.oliveyoung = stores;
-          if (!Array.isArray(products) || products.length === 0) return [];
-          return products.slice(0, 20).map((p: any): ProductInfo => ({
-            id: p.goodsNumber || p.goodsNo || '',
-            name: p.goodsName || p.name || '',
-            price: p.priceToPay || p.originalPrice || 0,
-            source: 'oliveyoung',
-          }));
-        })
-        .catch(() => [] as ProductInfo[]),
-      // 이마트24 - products 엔드포인트로 상품 검색
-      searchEmart24Products(query)
-        .then((res) => {
-          const list = res?.data?.products || [];
-          return Array.isArray(list) && list.length > 0
-            ? list.map((p: any): ProductInfo => ({
-                id: p.pluCd || '',
-                name: p.goodsName || '',
-                price: p.viewPrice || p.originPrice || 0,
-                source: 'emart24',
-                pluCd: p.pluCd || '',
-              }))
-            : [];
-        })
-        .catch(() => [] as ProductInfo[]),
-    ];
+    const allowedStores = SEARCH_CATEGORIES.find((c) => c.key === category)?.stores || [];
+
+    const searches: Promise<ProductInfo[]>[] = [];
+
+    if (allowedStores.includes('daiso')) {
+      searches.push(
+        searchDaisoProducts(query)
+          .then((res) => {
+            const list = res?.data?.products || res?.data || [];
+            return Array.isArray(list)
+              ? list.map((p: any): ProductInfo => ({
+                  id: p.id || p.productId || '',
+                  name: p.name || p.productName || '',
+                  price: p.price || p.salePrice || 0,
+                  imageUrl: p.imageUrl || p.image || '',
+                  source: 'daiso',
+                }))
+              : [];
+          })
+          .catch(() => [] as ProductInfo[])
+      );
+    }
+
+    if (allowedStores.includes('cu')) {
+      searches.push(
+        getCuInventory(query, geo.lat, geo.lng)
+          .then((res) => {
+            const items = res?.data?.inventory?.items || [];
+            const nearbyStores = res?.data?.nearbyStores?.stores || [];
+            cachedStoresRef.current.cu = nearbyStores;
+            if (!Array.isArray(items) || items.length === 0) return [];
+            return items.slice(0, 20).map((p: any): ProductInfo => ({
+              id: p.itemCode || p.onItemNo || '',
+              name: p.itemName || '',
+              price: p.price || 0,
+              source: 'cu',
+            }));
+          })
+          .catch(() => [] as ProductInfo[])
+      );
+    }
+
+    if (allowedStores.includes('oliveyoung')) {
+      searches.push(
+        getOliveyoungInventory(query, geo.lat, geo.lng)
+          .then((res) => {
+            const stores = res?.data?.nearbyStores?.stores || [];
+            const products = res?.data?.inventory?.products || [];
+            cachedStoresRef.current.oliveyoung = stores;
+            if (!Array.isArray(products) || products.length === 0) return [];
+            return products.slice(0, 20).map((p: any): ProductInfo => ({
+              id: p.goodsNumber || p.goodsNo || '',
+              name: p.goodsName || p.name || '',
+              price: p.priceToPay || p.originalPrice || 0,
+              source: 'oliveyoung',
+            }));
+          })
+          .catch(() => [] as ProductInfo[])
+      );
+    }
+
+    if (allowedStores.includes('emart24')) {
+      searches.push(
+        searchEmart24Products(query)
+          .then((res) => {
+            const list = res?.data?.products || [];
+            return Array.isArray(list) && list.length > 0
+              ? list.map((p: any): ProductInfo => ({
+                  id: p.pluCd || '',
+                  name: p.goodsName || '',
+                  price: p.viewPrice || p.originPrice || 0,
+                  source: 'emart24',
+                  pluCd: p.pluCd || '',
+                }))
+              : [];
+          })
+          .catch(() => [] as ProductInfo[])
+      );
+    }
 
     // 각 결과가 오는 대로 바로 표시
     searches.forEach((p) => {
@@ -441,6 +456,12 @@ export default function Home() {
           stores={filteredStores}
           onStoreClick={handleStoreClick}
           focusLocation={focusLocation}
+          inventoryMarkers={viewState === 'inventory' ? inventory : undefined}
+          onInventoryMarkerClick={(item) => {
+            if (item.lat && item.lng) {
+              setFocusLocation({ lat: item.lat, lng: item.lng });
+            }
+          }}
         />
 
         {geo.error && (

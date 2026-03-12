@@ -41,6 +41,15 @@ export interface ProductInfo {
 
 export type SearchableStore = 'daiso' | 'cu' | 'oliveyoung' | 'emart24';
 
+export type SearchCategory = 'all' | 'daiso' | 'convenience' | 'oliveyoung';
+
+export const SEARCH_CATEGORIES: { key: SearchCategory; label: string; stores: SearchableStore[] }[] = [
+  { key: 'all', label: '전체', stores: ['daiso', 'cu', 'oliveyoung', 'emart24'] },
+  { key: 'daiso', label: '다이소', stores: ['daiso'] },
+  { key: 'convenience', label: '편의점', stores: ['cu', 'emart24'] },
+  { key: 'oliveyoung', label: '올리브영', stores: ['oliveyoung'] },
+];
+
 export interface InventoryInfo {
   storeName: string;
   storeCode: string;

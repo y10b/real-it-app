@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
-import { StoreInfo, STORE_META } from '@/types';
+import { StoreInfo, InventoryInfo, STORE_META } from '@/types';
 
 declare global {
   interface Window {
@@ -15,14 +15,17 @@ interface Props {
   stores: StoreInfo[];
   onStoreClick?: (store: StoreInfo) => void;
   focusLocation?: { lat: number; lng: number } | null;
+  inventoryMarkers?: InventoryInfo[];
+  onInventoryMarkerClick?: (item: InventoryInfo) => void;
 }
 
-export default function KakaoMap({ lat, lng, stores, onStoreClick, focusLocation }: Props) {
+export default function KakaoMap({ lat, lng, stores, onStoreClick, focusLocation, inventoryMarkers, onInventoryMarkerClick }: Props) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const overlaysRef = useRef<any[]>([]);
   const focusMarkerRef = useRef<any>(null);
+  const inventoryOverlaysRef = useRef<any[]>([]);
 
   const initMap = useCallback(() => {
     if (!mapRef.current || !window.kakao?.maps) return;
@@ -128,6 +131,64 @@ export default function KakaoMap({ lat, lng, stores, onStoreClick, focusLocation
 
     focusMarkerRef.current = marker;
   }, [focusLocation]);
+
+  // 재고 매장 마커 표시
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !window.kakao?.maps) return;
+
+    // 기존 재고 마커 제거
+    inventoryOverlaysRef.current.forEach((o) => o.setMap(null));
+    inventoryOverlaysRef.current = [];
+
+    if (!inventoryMarkers || inventoryMarkers.length === 0) return;
+
+    const bounds = new window.kakao.maps.LatLngBounds();
+    bounds.extend(new window.kakao.maps.LatLng(lat, lng));
+
+    inventoryMarkers.forEach((item) => {
+      if (!item.lat || !item.lng) return;
+
+      const pos = new window.kakao.maps.LatLng(item.lat, item.lng);
+      bounds.extend(pos);
+
+      const isInStock = item.stock.includes('재고있음');
+      const isLow = item.stock.includes('소량');
+      const bgColor = isInStock ? '#22C55E' : isLow ? '#EAB308' : '#EF4444';
+      const meta = item.source ? STORE_META[item.source] : null;
+      const label = meta ? meta.label : '';
+
+      const el = document.createElement('div');
+      el.innerHTML = `
+        <div style="
+          display:flex;align-items:center;gap:3px;
+          padding:4px 8px;
+          background:${bgColor};color:white;
+          border-radius:16px;font-size:10px;font-weight:700;
+          box-shadow:0 2px 8px rgba(0,0,0,0.3);
+          cursor:pointer;white-space:nowrap;
+          border:2px solid white;
+        ">
+          ${label} ${isInStock ? '●' : isLow ? '◐' : '○'}
+        </div>
+      `;
+
+      const overlay = new window.kakao.maps.CustomOverlay({
+        content: el,
+        position: pos,
+        yAnchor: 1.3,
+        map,
+      });
+
+      el.addEventListener('click', () => {
+        onInventoryMarkerClick?.(item);
+      });
+
+      inventoryOverlaysRef.current.push(overlay);
+    });
+
+    map.setBounds(bounds, 80);
+  }, [inventoryMarkers, lat, lng, onInventoryMarkerClick]);
 
   return (
     <div
