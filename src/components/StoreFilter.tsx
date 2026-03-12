@@ -11,7 +11,9 @@ const ALL_TYPES: StoreType[] = ['daiso', 'cu', 'emart24', 'oliveyoung', 'megabox
 
 export default function StoreFilter({ activeFilters, onToggle }: Props) {
   return (
-    <div className="flex gap-2 overflow-x-auto py-2 px-4 scrollbar-hide">
+    <div className="px-4 pt-1 pb-2">
+      <p className="text-[11px] text-gray-400 mb-1 px-0.5">지도 매장 필터</p>
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide">
       {ALL_TYPES.map((type) => {
         const meta = STORE_META[type];
         const active = activeFilters.has(type);
@@ -31,6 +33,7 @@ export default function StoreFilter({ activeFilters, onToggle }: Props) {
           </button>
         );
       })}
+      </div>
     </div>
   );
 }

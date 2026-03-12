@@ -46,7 +46,8 @@ export default function SearchBar({ onSearch, loading }: Props) {
           </button>
         </div>
       </form>
-      <div className="flex gap-2 mt-2 overflow-x-auto scrollbar-hide">
+      <p className="text-[11px] text-gray-400 mt-2 mb-1 px-0.5">검색 카테고리</p>
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide">
         {SEARCH_CATEGORIES.map((cat) => {
           const active = category === cat.key;
           const colors = getCategoryColor(cat.key, active);
